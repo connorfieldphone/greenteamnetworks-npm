@@ -1,0 +1,25 @@
+GreenTeam Networks v6.0.0
+==========================
+
+Major updater and CLI reliability update.
+
+Fixes:
+- Adds a real `greenteamnetwork update` command.
+- Adds `gn update` alias.
+- Uses GitHub as the update source.
+- Never reports an update as installed unless files were actually replaced and verified.
+- Updates only files contained in the downloaded update package.
+- Leaves unrelated local files untouched.
+- Creates a backup before applying an update.
+- Validates package.json before and after an update.
+- Keeps the project folder name independent from the package version.
+- Keeps package versioning in package.json.
+- Adds update notes support.
+- Adds clear failure messages instead of silent/false success.
+- Keeps GRNPMS available for local ZIP installs/updates.
+
+Target version: 6.0.0
+Update source repository:
+https://github.com/connorfieldphone/greenteamnetworks-npm
+Update branch:
+Update
