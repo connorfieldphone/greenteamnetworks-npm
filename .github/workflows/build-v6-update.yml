@@ -1,0 +1,83 @@
+name: Build GreenTeam Networks v6 update
+
+on:
+  push:
+    branches: [Update]
+    paths-ignore:
+      - 'greenteamnetworks@v*.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Update branch
+        uses: actions/checkout@v4
+        with:
+          ref: Update
+          fetch-depth: 0
+
+      - name: Build v6 package from v5 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf work package
+          mkdir -p work package
+          unzip -q 'greenteamnetworks@v5.0.0.zip' -d work
+
+          # Find the actual package root in the v5 archive.
+          if [ -f work/package.json ]; then
+            ROOT=work
+          else
+            ROOT=$(find work -maxdepth 2 -type f -name package.json -print -quit | xargs -r dirname)
+          fi
+
+          if [ -z "${ROOT:-}" ] || [ ! -f "$ROOT/package.json" ]; then
+            echo 'Could not locate package.json in v5 archive.'
+            exit 1
+          fi
+
+          python3 - "$ROOT/package.json" <<'PY'
+          import json, sys
+          p=sys.argv[1]
+          with open(p, encoding='utf-8') as f:
+              data=json.load(f)
+          data['version']='6.0.0'
+          with open(p,'w',encoding='utf-8',newline='\n') as f:
+              json.dump(data,f,indent=2)
+              f.write('\n')
+          PY
+
+          # Include the v6 release notes and installer helper in the package.
+          cp 'v6.0.0/updatenotes@v6.0.0.txt' "$ROOT/updatenotes@v6.0.0.txt"
+          cp 'v6.0.0/README.md' "$ROOT/V6-README.md"
+          cp 'v6.0.0/install-v6.ps1' "$ROOT/install-v6.ps1"
+
+          # Marker used by the updater to verify the package version.
+          cat > "$ROOT/UPDATE-VERSION.txt" <<'EOF'
+          6.0.0
+          EOF
+
+          mkdir -p package/greenteamnetworks@v6.0.0
+          cp -a "$ROOT/." package/greenteamnetworks@v6.0.0/
+
+          cd package
+          zip -qr '../greenteamnetworks@v6.0.0.zip' 'greenteamnetworks@v6.0.0'
+          cd ..
+
+          unzip -t 'greenteamnetworks@v6.0.0.zip'
+          test -s 'greenteamnetworks@v6.0.0.zip'
+
+      - name: Publish ZIP to Update branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp 'greenteamnetworks@v6.0.0.zip' /tmp/greenteamnetworks@v6.0.0.zip
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add 'greenteamnetworks@v6.0.0.zip'
+          git commit -m 'Publish greenteamnetworks v6.0.0 update ZIP [skip ci]' || exit 0
+          git push origin Update
